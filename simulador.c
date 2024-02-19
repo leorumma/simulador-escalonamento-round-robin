@@ -235,10 +235,9 @@ void removerProcessIO(Process* p, ProcessIO* io) {
     free(io); // Libera a memória alocada para o ProcessIO
 }
 
-void processarRoundRobin(int quantidadeProcessos, Process **pProcess, Fila **pFila, Fila **pFila1, Fila **pFila2, Fila **pFila3, Fila **pFila4) {
+void processarRoundRobin(int quantidadeProcessos, Process **processos, Fila **filaAltaPrioridade, Fila **filaBaixaPrioridade, Fila **filaImpressora, Fila **filaDisco, Fila **filaFita) {
     int tempo = 0;
     int quantidadeProcessosFinalizados = 0;
-
     //todo: condição de parada para o for
     while (quantidadeProcessosFinalizados < quantidadeProcessos) {
         //todo: adicionar na lista de prontos novos processos que chegaram;
