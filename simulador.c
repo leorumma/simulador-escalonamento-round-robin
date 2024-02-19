@@ -83,8 +83,9 @@ typedef struct Process {
 
 typedef struct FILA {
     Process processo;
-    Process *prox;
+    struct FILA *prox;
 } Fila;
+
 
 Process* criarProcesso(int id);
 
@@ -102,6 +103,13 @@ Fila* inicializarFila();
 const char* TipoEntradaSaidaParaString(TipoEntradaSaida tipo);
 
 void printConsoleIncializacaoProcessos(Process** processos, int quantidadeProcessos);
+
+void imprimirFila(Fila* fila);
+
+void adicionarNaFila(Fila** fila, Process* processo);
+
+void adicionarNovosProcessos(int quantidadeProcessos, Process **processos, int tempo, Fila **filaAltaPrioridade);
+
 
 int main() {
     srand(time(NULL));
@@ -240,13 +248,52 @@ void processarRoundRobin(int quantidadeProcessos, Process **processos, Fila **fi
     int quantidadeProcessosFinalizados = 0;
     //todo: condição de parada para o for
     while (quantidadeProcessosFinalizados < quantidadeProcessos) {
-        //todo: adicionar na lista de prontos novos processos que chegaram;
+        adicionarNovosProcessos(quantidadeProcessos, processos, tempo, filaAltaPrioridade);
         //todo: executarCPU
         //todo: executarIOImpressora
         //todo: executarIODisco
         //todo: executarIOFita
         tempo+= 1;
+        quantidadeProcessosFinalizados+=1;
     }
+}
+
+void adicionarNovosProcessos(int quantidadeProcessos, Process **processos, int tempo, Fila **filaAltaPrioridade) {
+    for (int i = 0; i < quantidadeProcessos; ++i) {
+        Process* processo = processos[i];
+        if (processo->tempoEntrada == tempo) {
+            adicionarNaFila(filaAltaPrioridade, processo);
+        }
+    }
+}
+
+void adicionarNaFila(Fila** fila, Process* processo) {
+    // Cria um novo nó para a fila
+    Fila* novoNo = (Fila*) malloc(sizeof(Fila));
+    novoNo->processo = *processo;
+    novoNo->prox = NULL;
+    if (*fila == NULL) {
+        // Se a fila estiver vazia, o novo nó é o primeiro nó
+        *fila = novoNo;
+    } else {
+        // Caso contrário, adiciona o novo nó ao final da fila
+        Fila* atual = *fila;
+        while (atual->prox != NULL) {
+            atual = atual->prox;
+        }
+        atual->prox = novoNo;
+    }
+    Fila* atual = *fila; // Desreferencie 'fila' para obter um ponteiro para 'Fila'
+    printf("Processos na fila de alta prioridade: [");
+    if (atual != NULL) {
+        printf("%s", atual->processo.pid);
+        atual = atual->prox;
+    }
+    while (atual != NULL) {
+        printf(", %s", atual->processo.pid);
+        atual = atual->prox;
+    }
+    printf("]\n");
 }
 
 const char* TipoEntradaSaidaParaString(TipoEntradaSaida tipo) {
