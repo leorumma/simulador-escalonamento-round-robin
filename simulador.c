@@ -4,22 +4,37 @@
 #include <string.h>
 
 typedef int bool;
+
 #define true 1
+
 #define false 0
+
 #define MAX_PROCESSOS 10
+
 #define QUANTUM 5
+
 #define DISCO_IO_DURATION 4
+
 #define FITA_IO_DURATION 6
+
 #define IMPRESSORA_IO_DURATION 10
+
 #define TEMPO_ENTRADA_MAX 5
+
 #define TOTAL_CPU_MIN 1
+
 #define TOTAL_CPU_MAX 10
+
 #define TOTAL_OPERACOES_ENTRADA_SAIDA_MAX 2
+
 #define TIPO_ENTRADA_SAIDA_NUM 3
+
 #define QUANTIDADE_MAXIMA_PROCESSOS 6
+
 #define TEMPO_CHAMADA_IO 3
 
 typedef struct Process Process;
+
 typedef struct ProcessIO ProcessIO;
 
 typedef enum {
@@ -40,16 +55,6 @@ typedef enum {
     BAIXA_PRIORIDADE,
     IO
 } FilaTipo;
-
-//struct ProcessIO {
-//    int ppid[3];
-//    TipoEntradaSaida tipo;
-//    int totalDuracao;
-//    int inicio;
-//    int totalExecucao;
-//    int fim;
-//    Process* processoPai;
-//};
 
 typedef struct ProcessIO {
     int ppid[3];
@@ -83,24 +88,57 @@ typedef struct FILA {
 
 Process* criarProcesso(int id);
 
-ProcessIO* criarProcessoIO(Process* process);
+int getTotalDuracaoIO(TipoEntradaSaida tipo);
+
+void removerProcessIO(Process* p, ProcessIO* io);
 
 void processarRoundRobin(int quantidadeProcessos, Process **pProcess, Fila **pFila, Fila **pFila1, Fila **pFila2, Fila **pFila3, Fila **pFila4);
 
-int getTotalDuracaoIO(TipoEntradaSaida tipo) {
-    if (IMPRESSORA == tipo) {
-        return IMPRESSORA_IO_DURATION;
-    }
-    if (FITA == tipo) {
-        return FITA_IO_DURATION;
-    }
-    if (DISCO == tipo) {
-        return DISCO_IO_DURATION;
-    }
+
+Process** gerarProcessos(int quantidadeProcessos);
+
+Fila* inicializarFila();
+
+const char* TipoEntradaSaidaParaString(TipoEntradaSaida tipo);
+
+void printConsoleIncializacaoProcessos(Process** processos, int quantidadeProcessos);
+
+int main() {
+    srand(time(NULL));
+    //incialização do programa: quantidade de processos,
+    int quantidadeProcessos = 5;
+    Process** processos = gerarProcessos(quantidadeProcessos);
+    Fila *filaBaixaPrioridade = inicializarFila();
+    Fila *filaAltaPrioridade = inicializarFila();
+    Fila *filaDisco = inicializarFila();
+    Fila *filaImpressora = inicializarFila();
+    Fila *filaFita = inicializarFila();
+    printConsoleIncializacaoProcessos(processos, quantidadeProcessos);
+    processarRoundRobin(quantidadeProcessos,processos,&filaAltaPrioridade,&filaBaixaPrioridade,&filaImpressora,&filaDisco,&filaFita);
     return 0;
 }
 
-void removerProcessIO(Process* p, ProcessIO* io);
+Process** gerarProcessos(int quantidadeProcessos) {
+    Process** processos = malloc(quantidadeProcessos * sizeof(Process*));
+    if (processos == NULL) {
+        printf("Erro na alocação de memória para os processos.\n");
+        exit(1);
+    }
+    for (int i = 0; i < quantidadeProcessos; ++i) {
+        processos[i] = criarProcesso(i);
+    }
+    return processos;
+}
+
+Fila* inicializarFila() {
+    Fila* f = (Fila*) malloc(sizeof(Fila));
+    if (f == NULL) {
+        printf("Erro na alocação de memória para a fila.\n");
+        exit(1);
+    }
+    f->prox = NULL;
+    return f;
+}
 
 Process* criarProcesso(int id) {
     Process* p = (Process*) malloc(sizeof(Process));
@@ -144,41 +182,57 @@ Process* criarProcesso(int id) {
     return p;
 }
 
-
-//ProcessIO* criarProcessoIO(Process* process) {
-//    ProcessIO* pio = (ProcessIO*) malloc(sizeof(ProcessIO));
-//    if (pio == NULL) {
-//        printf("Erro na alocação de memória para o ProcessIO.\n");
-//        exit(1);
-//    }
-//    pio->type = 0;
-//    pio->activation_time = 0;
-//    pio->duration = 0;
-//    pio->priority = 0;
-//    pio->process = process;
-//    return pio;
-//}
-
-Process** gerarProcessos(int quantidadeProcessos) {
-    Process** processos = malloc(quantidadeProcessos * sizeof(Process*));
-    if (processos == NULL) {
-        printf("Erro na alocação de memória para os processos.\n");
-        exit(1);
+int getTotalDuracaoIO(TipoEntradaSaida tipo) {
+    if (IMPRESSORA == tipo) {
+        return IMPRESSORA_IO_DURATION;
     }
-    for (int i = 0; i < quantidadeProcessos; ++i) {
-        processos[i] = criarProcesso(i);
+    if (FITA == tipo) {
+        return FITA_IO_DURATION;
     }
-    return processos;
+    if (DISCO == tipo) {
+        return DISCO_IO_DURATION;
+    }
+    return 0;
 }
 
-Fila* inicializarFila() {
-    Fila* f = (Fila*) malloc(sizeof(Fila));
-    if (f == NULL) {
-        printf("Erro na alocação de memória para a fila.\n");
-        exit(1);
+void printConsoleIncializacaoProcessos(Process** processos, int quantidadeProcessos) {
+    printf("Os processos foram criados: \n");
+    for (int i = 0; i < quantidadeProcessos; ++i) {
+        Process* processo = processos[i];
+        printf("Processo %s:\n", processo->pid);
+        printf("  Prioridade: %d\n", processo->prioridade);
+        printf("  Status: %d\n", processo->status);
+        printf("  Tempo de entrada: %d\n", processo->tempoEntrada);
+        printf("  Total de CPU necessário: %d\n", processo->totalCPUNecessario);
+        printf("  Tempo de conclusão: %d\n", processo->tempoConclusao);
+        printf("  Tempo de CPU utilizado: %d\n", processo->tempoCPUUtilizado);
+        printf("  Total de operações de entrada/saída: %d\n", processo->totalOperacoesEntradaSaida);
+        ProcessIO* io = processo->operacoesEntradasSaidas;
+        while (io != NULL) {
+            printf("  Operação de entrada/saída:\n");
+            printf("    Tipo: %s\n", TipoEntradaSaidaParaString(io->tipo));
+            printf("    Duração total: %d\n", io->totalDuracao);
+            printf("    Início: %d\n", io->inicio);
+            printf("    Execução total: %d\n", io->totalExecucao);
+            printf("    Fim: %d\n", io->fim);
+            io = io->proximo;
+        }
     }
-    f->prox = NULL;
-    return f;
+}
+
+void removerProcessIO(Process* p, ProcessIO* io) {
+    if (p->operacoesEntradasSaidas == io) {
+        // Se o ProcessIO a ser removido é o primeiro na lista
+        p->operacoesEntradasSaidas = io->proximo;
+    } else {
+        // Se o ProcessIO a ser removido está no meio ou no fim da lista
+        ProcessIO* anterior = p->operacoesEntradasSaidas;
+        while (anterior->proximo != io) {
+            anterior = anterior->proximo;
+        }
+        anterior->proximo = io->proximo;
+    }
+    free(io); // Libera a memória alocada para o ProcessIO
 }
 
 void processarRoundRobin(int quantidadeProcessos, Process **pProcess, Fila **pFila, Fila **pFila1, Fila **pFila2, Fila **pFila3, Fila **pFila4) {
@@ -204,67 +258,3 @@ const char* TipoEntradaSaidaParaString(TipoEntradaSaida tipo) {
         default: return "Tipo desconhecido";
     }
 }
-
-int main() {
-    srand(time(NULL));
-    //incialização do programa: quantidade de processos,
-    int quantidadeProcessos = 5;
-    Process** processos = gerarProcessos(quantidadeProcessos);
-    for (int i = 0; i < quantidadeProcessos; ++i) {
-        Process* processo = processos[i];
-        printf("Pid do processo %s\n", processo->pid);
-    }
-    Fila *filaBaixaPrioridade = inicializarFila();
-    Fila *filaAltaPrioridade = inicializarFila();
-    Fila *filaDisco = inicializarFila();
-    Fila *filaImpressora = inicializarFila();
-    Fila *filaFita = inicializarFila();
-//    processarRoundRobin(quantidadeProcessos,
-//                        processos,
-//                        &filaAltaPrioridade,
-//                        &filaBaixaPrioridade,
-//                        &filaImpressora,
-//                        &filaDisco,
-//                        &filaFita);
-
-    printf("Os processos foram criados: ");
-    for (int i = 0; i < quantidadeProcessos; ++i) {
-        Process* processo = processos[i];
-        printf("Processo %s:\n", processo->pid);
-        printf("  Prioridade: %d\n", processo->prioridade);
-        printf("  Status: %d\n", processo->status);
-        printf("  Tempo de entrada: %d\n", processo->tempoEntrada);
-        printf("  Total de CPU necessário: %d\n", processo->totalCPUNecessario);
-        printf("  Tempo de conclusão: %d\n", processo->tempoConclusao);
-        printf("  Tempo de CPU utilizado: %d\n", processo->tempoCPUUtilizado);
-        printf("  Total de operações de entrada/saída: %d\n", processo->totalOperacoesEntradaSaida);
-        ProcessIO* io = processo->operacoesEntradasSaidas;
-        while (io != NULL) {
-            printf("  Operação de entrada/saída:\n");
-            printf("    Tipo: %s\n", TipoEntradaSaidaParaString(io->tipo));
-            printf("    Duração total: %d\n", io->totalDuracao);
-            printf("    Início: %d\n", io->inicio);
-            printf("    Execução total: %d\n", io->totalExecucao);
-            printf("    Fim: %d\n", io->fim);
-            io = io->proximo;
-        }
-    }
-    return 0;
-}
-
-void removerProcessIO(Process* p, ProcessIO* io) {
-    if (p->operacoesEntradasSaidas == io) {
-        // Se o ProcessIO a ser removido é o primeiro na lista
-        p->operacoesEntradasSaidas = io->proximo;
-    } else {
-        // Se o ProcessIO a ser removido está no meio ou no fim da lista
-        ProcessIO* anterior = p->operacoesEntradasSaidas;
-        while (anterior->proximo != io) {
-            anterior = anterior->proximo;
-        }
-        anterior->proximo = io->proximo;
-    }
-    free(io); // Libera a memória alocada para o ProcessIO
-}
-
-
