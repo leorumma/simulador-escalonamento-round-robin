@@ -101,7 +101,7 @@ void processarFilaCPU(int *quantidadeProcessosFinalizados, Process **processoSen
 
 bool isEmpty(Fila* fila);
 
-Fila* getProcessoFromFila(Fila** fila);
+Process* getProcessoFromFila(Fila** fila);
 
 int main() {
     srand(time(NULL));
@@ -270,19 +270,14 @@ void processarFilaCPU(int *quantidadeProcessosFinalizados, Process **processoSen
         }
     }
     if (*processoSendoExecutado == NULL) {
-        Fila* no;
         if (!isEmpty(*filaAltaPrioridade)) {
-            no = getProcessoFromFila(filaAltaPrioridade);
-            *processoSendoExecutado = &(no->processo);
+            *processoSendoExecutado = getProcessoFromFila(filaAltaPrioridade);
             imprimirFila(filaAltaPrioridade, "de Alta prioridade");
-//            free(no); // Libera a memória do nó removido
             return;
         }
         if (!isEmpty(*filaBaixaPrioridade)) {
-            no = getProcessoFromFila(filaBaixaPrioridade);
-            *processoSendoExecutado = &(no->processo);
+            *processoSendoExecutado = getProcessoFromFila(filaBaixaPrioridade);
             imprimirFila(filaBaixaPrioridade, "de baixa prioridade");
-//            free(no); // Libera a memória do nó removido
             return;
         }
     }
@@ -346,11 +341,14 @@ bool isEmpty(Fila* fila) {
     return (fila == NULL);
 }
 
-Fila* getProcessoFromFila(Fila** fila) {
+Process* getProcessoFromFila(Fila** fila) {
     if (*fila == NULL) {
         return NULL;
     }
     Fila* primeiroNo = *fila;
     *fila = primeiroNo->prox; // Atualiza a fila para apontar para o segundo nó
-    return primeiroNo;
+    Process* processo = malloc(sizeof(Process));
+    *processo = primeiroNo->processo; // Copia o processo
+    free(primeiroNo); // Libera a memória do nó removido
+    return processo;
 }
