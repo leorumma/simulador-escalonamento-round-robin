@@ -7,7 +7,7 @@ typedef int bool;
 #define true 1
 #define false 0
 #define MAX_PROCESSOS 10
-#define QUANTUM 1
+#define QUANTUM 4
 #define DISCO_IO_DURATION 4
 #define FITA_IO_DURATION 6
 #define IMPRESSORA_IO_DURATION 10
@@ -64,6 +64,7 @@ typedef struct Process {
     int tempoCPUUtilizado;
     int totalOperacoesEntradaSaida;
     int tempQuantum;
+    int turnaroundTime;
     ProcessIO* operacoesEntradasSaidas; // Ponteiro para a primeira ProcessIO na lista
     ProcessIO* operacaoEntradaSaidaAtual; // Ponteiro para a ProcessIO atual na lista
 } Process;
@@ -80,7 +81,7 @@ int getTotalDuracaoIO(TipoEntradaSaida tipo);
 
 void removerProcessIO(Process* p, ProcessIO* io);
 
-void processarRoundRobin(int quantidadeProcessos, Process **pProcess, Fila **pFila, Fila **pFila1, Fila **pFila2, Fila **pFila3, Fila **pFila4, Fila **filaProcessosConcluidos);
+void processarRoundRobin(int quantidadeProcessos, int *tempoExecucao, Process **pProcess, Fila **pFila, Fila **pFila1, Fila **pFila2, Fila **pFila3, Fila **pFila4, Fila **filaProcessosConcluidos);
 
 
 Process** gerarProcessos(int quantidadeProcessos);
@@ -103,12 +104,13 @@ bool isEmpty(Fila* fila);
 
 Process* getProcessoFromFila(Fila** fila);
 
-void imprimirProcessosConcluidos(Fila **filaProcessosConcluidos);
+void imprimirProcessosConcluidos(int quantidadeProcessos, int tempoExecucao, Fila **filaProcessosConcluidos);
 
 int main() {
     srand(time(NULL));
     //incialização do programa: quantidade de processos,
     int quantidadeProcessos = 5;
+    int tempoExecucao = 0;
     Process** processos = gerarProcessos(quantidadeProcessos);
     Fila *filaBaixaPrioridade = inicializarFila();
     Fila *filaAltaPrioridade = inicializarFila();
@@ -117,8 +119,8 @@ int main() {
     Fila *filaFita = inicializarFila();
     Fila *filaProcessosConcluidos = inicializarFila();
     printConsoleIncializacaoProcessos(processos, quantidadeProcessos);
-    processarRoundRobin(quantidadeProcessos,processos,&filaAltaPrioridade,&filaBaixaPrioridade,&filaImpressora,&filaDisco,&filaFita, &filaProcessosConcluidos);
-    imprimirProcessosConcluidos(&filaProcessosConcluidos);
+    processarRoundRobin(quantidadeProcessos, &tempoExecucao, processos,&filaAltaPrioridade,&filaBaixaPrioridade,&filaImpressora,&filaDisco,&filaFita, &filaProcessosConcluidos);
+    imprimirProcessosConcluidos(quantidadeProcessos, tempoExecucao, &filaProcessosConcluidos);
     return 0;
 }
 
@@ -241,7 +243,7 @@ void removerProcessIO(Process* p, ProcessIO* io) {
     free(io); // Libera a memória alocada para o ProcessIO
 }
 
-void processarRoundRobin(int quantidadeProcessos, Process **processos, Fila **filaAltaPrioridade, Fila **filaBaixaPrioridade, Fila **filaImpressora, Fila **filaDisco, Fila **filaFita, Fila **filaProcessosConcluidos) {
+void processarRoundRobin(int quantidadeProcessos, int *tempoExecucao, Process **processos, Fila **filaAltaPrioridade, Fila **filaBaixaPrioridade, Fila **filaImpressora, Fila **filaDisco, Fila **filaFita, Fila **filaProcessosConcluidos) {
     int tempo = 0;
     int quantidadeProcessosFinalizados = 0;
     Process* processoSendoExecutado = NULL;
@@ -254,6 +256,7 @@ void processarRoundRobin(int quantidadeProcessos, Process **processos, Fila **fi
         //todo: executarIOFita
         tempo+= 1;
     }
+    (*tempoExecucao) = tempo;
 }
 
 void processarFilaCPU(int tempo, int *quantidadeProcessosFinalizados, Process **processoSendoExecutado, Fila **filaBaixaPrioridade, Fila **filaAltaPrioridade, Fila **filaProcessosConcluidos) {
@@ -262,6 +265,7 @@ void processarFilaCPU(int tempo, int *quantidadeProcessosFinalizados, Process **
             (*processoSendoExecutado)->status = CONCLUIDO;
             (*processoSendoExecutado)->tempQuantum = 0;
             (*processoSendoExecutado)->tempoConclusao = tempo;
+            (*processoSendoExecutado)->turnaroundTime = (*processoSendoExecutado)->tempoConclusao - (*processoSendoExecutado)->tempoEntrada;
             adicionarNaFila(filaProcessosConcluidos, *processoSendoExecutado);
             (*quantidadeProcessosFinalizados)++;
             *processoSendoExecutado = NULL;
@@ -393,18 +397,31 @@ Process* getProcessoFromFila(Fila** fila) {
 }
 
 
-void imprimirProcessosConcluidos(Fila **filaProcessosConcluidos) {
+void imprimirProcessosConcluidos(int quantidadeProcessos, int tempoExecucao, Fila **filaProcessosConcluidos) {
     Fila* atual = *filaProcessosConcluidos;
+    int totalCPUTempo = 0;
+    int totalTurnAround = 0;
     printf("Processos concluídos:\n");
     while (atual != NULL) {
         Process* processo = atual->processo; // Agora é um ponteiro para Process
-        printf("PID: %s, Status: %d, Tempo de Entrada: %d, Tempo de Conclusão: %d, Total CPU Necessario: %d\n",
+        totalCPUTempo = processo->totalCPUNecessario + totalCPUTempo;
+        totalTurnAround = processo->turnaroundTime + totalTurnAround;
+        printf("PID: %s, Status: %d, Tempo de Entrada: %d, Tempo de Conclusão: %d, Total CPU Necessario: %d, Turnaround Time: %d \n",
                processo->pid,
                processo->status,
                processo->tempoEntrada,
                processo->tempoConclusao,
-               processo->totalCPUNecessario);
+               processo->totalCPUNecessario,
+               processo->turnaroundTime);
         atual = atual->prox;
     }
+    float turnaroundMedio = (float) totalTurnAround / (float) quantidadeProcessos;
+    float throughput = (float) quantidadeProcessos / (float) tempoExecucao;
+    float utilizacaoCPU = ((float ) totalCPUTempo / (float) tempoExecucao) * 100;
+    printf("Tempo total de execução: %d \n", tempoExecucao);
+    printf("Throughput: %.2f \n", throughput);
+    printf("Utilização CPU: %.2f%% \n", utilizacaoCPU);
+    printf("Turnaround Time Medio: %.2f \n", turnaroundMedio);
+
 }
 
