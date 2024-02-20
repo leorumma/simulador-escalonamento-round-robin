@@ -52,7 +52,7 @@ typedef struct ProcessIO {
     int totalExecucao;
     int fim;
     Process* processoPai;
-    struct ProcessIO* proximo; // Ponteiro para o próximo ProcessIO na lista
+    struct ProcessIO* proximo;
 } ProcessIO;
 
 
@@ -67,8 +67,8 @@ typedef struct Process {
     int totalOperacoesEntradaSaida;
     int tempQuantum;
     float turnaroundTime;
-    ProcessIO* operacoesEntradasSaidas; // Ponteiro para a primeira ProcessIO na lista
-    ProcessIO* operacaoEntradaSaidaAtual; // Ponteiro para a ProcessIO atual na lista
+    ProcessIO* operacoesEntradasSaidas;
+    ProcessIO* operacaoEntradaSaidaAtual;
 } Process;
 
 typedef struct FILA {
@@ -208,15 +208,13 @@ Process* criarProcesso(int id) {
         io->processoPai = p;
         io->proximo = NULL;
         if (ultimoIO == NULL) {
-            // Se esta é a primeira operação de entrada/saída, ela se torna a cabeça da lista
             p->operacoesEntradasSaidas = io;
         } else {
-            // Caso contrário, ela é anexada ao final da lista
             ultimoIO->proximo = io;
         }
         ultimoIO = io;
     }
-    p->operacaoEntradaSaidaAtual = p->operacoesEntradasSaidas; // A primeira operação de entrada/saída é a atual
+    p->operacaoEntradaSaidaAtual = p->operacoesEntradasSaidas;
     return p;
 }
 
@@ -256,21 +254,6 @@ void printConsoleIncializacaoProcessos(Process** processos, int quantidadeProces
             io = io->proximo;
         }
     }
-}
-
-void removerProcessIO(Process* p, ProcessIO* io) {
-    if (p->operacoesEntradasSaidas == io) {
-        // Se o ProcessIO a ser removido é o primeiro na lista
-        p->operacoesEntradasSaidas = io->proximo;
-    } else {
-        // Se o ProcessIO a ser removido está no meio ou no fim da lista
-        ProcessIO* anterior = p->operacoesEntradasSaidas;
-        while (anterior->proximo != io) {
-            anterior = anterior->proximo;
-        }
-        anterior->proximo = io->proximo;
-    }
-    free(io); // Libera a memória alocada para o ProcessIO
 }
 
 bool isInterrupcaoIO(Process **processoSendoExecutado);
@@ -392,7 +375,7 @@ void imprimirProcessosConcluidos(int quantidadeProcessos, int tempoExecucao, Fil
     int totalTurnAround = 0;
     printf("Processos concluídos:\n");
     while (atual != NULL) {
-        Process* processo = atual->processo; // Agora é um ponteiro para Process
+        Process* processo = atual->processo;
         totalCPUTempo = processo->totalCPUNecessario + totalCPUTempo;
         totalTurnAround = processo->turnaroundTime + totalTurnAround;
         printf("PID: %s, Tempo de Entrada: %d, Tempo de Conclusão: %d, Total CPU Necessario: %d, Turnaround Time: %.2f \n",
@@ -425,7 +408,7 @@ bool isInterrupcaoIO(Process **processoSendoExecutado) {
 }
 
 void imprimirFila(Fila** fila, char* nomeFila) {
-    Fila* atual = *fila; // Desreferencie 'fila' para obter um ponteiro para 'Fila'
+    Fila* atual = *fila;
     printf("Processos na fila %s: [", nomeFila);
     if (atual != NULL) {
         printf("%s", atual->processo->pid);
@@ -439,7 +422,7 @@ void imprimirFila(Fila** fila, char* nomeFila) {
 }
 
 void imprimirIO(FilaIO ** fila, char* nomeFila) {
-    FilaIO* atual = *fila; // Desreferencie 'fila' para obter um ponteiro para 'Fila'
+    FilaIO* atual = *fila;
     printf("Processos na fila %s: [", nomeFila);
     if (atual != NULL) {
         printf("%s", atual->operacaoIO->pid);
@@ -462,7 +445,7 @@ ProcessIO* getIOFromProcesso(Process **processoSendoExecutado) {
             } else {
                 anteriorIO->proximo = operacaoIO->proximo;
             }
-            operacaoIO->proximo = NULL; // Isola a operação de IO
+            operacaoIO->proximo = NULL;
             return operacaoIO;
         }
         anteriorIO = operacaoIO;
