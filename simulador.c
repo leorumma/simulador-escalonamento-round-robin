@@ -202,7 +202,7 @@ Process* criarProcesso(int id) {
         strcpy(io->ppid, p->pid);
         io->tipo = (TipoEntradaSaida) (rand() % TIPO_ENTRADA_SAIDA_NUM);
         io->totalDuracao = getTotalDuracaoIO(io->tipo);
-        io->inicio = rand() % (TEMPO_CHAMADA_IO + 2 + io->tipo);
+        io->inicio = rand() % (p->tempoEntrada +1) + 1;
         io->totalExecucao = 0;
         io->fim = 0;
         io->processoPai = p;
@@ -543,10 +543,10 @@ void imprimirHistoricoFilasExecucao(int tempo,  Process **processoSendoExecutado
         return;
     }
     printf("Tempo de Execução: %d \n", tempo);
-    printf("Executando: %s \n", (*processoSendoExecutado)->pid);
-    printf("Executando Impressora: %s \n", (*impressoraIOAtual)->pid);
-    printf("Executando Fita: %s \n", (*fitaIoAtual)->pid);
-    printf("Executando Disco: %s \n", (*discoIOAtual)->pid);
+    printf("Executando: %s \n", (*processoSendoExecutado) ? (*processoSendoExecutado)->pid : "-");
+    printf("Executando Impressora: %s \n", (*impressoraIOAtual) ? (*impressoraIOAtual)->pid : "-");
+    printf("Executando Fita: %s \n", (*fitaIoAtual) ? (*fitaIoAtual)->pid : "-");
+    printf("Executando Disco: %s \n", (*discoIOAtual) ? (*discoIOAtual)->pid : "-");
     imprimirFila(filaAltaPrioridade, "Alta prioridade");
     imprimirFila(filaBaixaPrioridade, "baixa prioridade");
     imprimirFila(filaBloqueado, "bloqueados");
