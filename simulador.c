@@ -93,8 +93,6 @@ const char* TipoEntradaSaidaParaString(TipoEntradaSaida tipo);
 
 void printConsoleIncializacaoProcessos(Process** processos, int quantidadeProcessos);
 
-void imprimirFila(Fila** fila, char* nomeFila);
-
 void adicionarNaFila(Fila** fila, Process* processo);
 
 void adicionarNovosProcessos(int quantidadeProcessos, Process **processos, int tempo, Fila **filaAltaPrioridade);
@@ -168,7 +166,7 @@ Process* criarProcesso(int id) {
             printf("Erro na alocação de memória para a operação de entrada/saída.\n");
             exit(1);
         }
-        io->tipo = (TipoEntradaSaida) (rand() % TIPO_ENTRADA_SAIDA_NUM); // Substitua NUM_TIPOS pelo número de tipos possíveis
+        io->tipo = (TipoEntradaSaida) (rand() % TIPO_ENTRADA_SAIDA_NUM);
         io->totalDuracao = getTotalDuracaoIO(io->tipo);
         io->inicio = 0;
         io->totalExecucao = 0;
@@ -320,22 +318,6 @@ void adicionarNaFila(Fila** fila, Process* processo) {
         atual->prox = novoNo;
     }
 }
-
-
-//void imprimirFila(Fila** fila, char* nomeFila) {
-//    Fila* atual = *fila; // Desreferencie 'fila' para obter um ponteiro para 'Fila'
-//    printf("Processos na fila %s: [", nomeFila);
-//    if (atual != NULL) {
-//        printf("%s", atual->processo->pid);
-//        atual = atual->prox;
-//    }
-//    while (atual != NULL) {
-//        printf(", %s", atual->processo->pid);
-//        atual = atual->prox;
-//    }
-//    printf("]\n");
-//}
-
 
 const char* TipoEntradaSaidaParaString(TipoEntradaSaida tipo) {
     switch (tipo) {
