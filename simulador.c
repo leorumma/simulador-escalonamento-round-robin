@@ -7,7 +7,8 @@ typedef int bool;
 #define true 1
 #define false 0
 #define MAX_PROCESSOS 10
-#define QUANTUM 4
+int QUANTUM  = 0;
+int quantidadeProcessos = 0;
 #define DISCO_IO_DURATION 4
 #define FITA_IO_DURATION 6
 #define IMPRESSORA_IO_DURATION 10
@@ -64,7 +65,7 @@ typedef struct Process {
     int tempoCPUUtilizado;
     int totalOperacoesEntradaSaida;
     int tempQuantum;
-    int turnaroundTime;
+    float turnaroundTime;
     ProcessIO* operacoesEntradasSaidas; // Ponteiro para a primeira ProcessIO na lista
     ProcessIO* operacaoEntradaSaidaAtual; // Ponteiro para a ProcessIO atual na lista
 } Process;
@@ -106,10 +107,14 @@ Process* getProcessoFromFila(Fila** fila);
 
 void imprimirProcessosConcluidos(int quantidadeProcessos, int tempoExecucao, Fila **filaProcessosConcluidos);
 
-int main() {
+int main(int argc, char *argv[]) {
     srand(time(NULL));
-    //incialização do programa: quantidade de processos,
-    int quantidadeProcessos = 5;
+    if(argc != 3) {
+        printf("Uso: %s <quantidadeProcessos> <quantum>\n", argv[0]);
+        return 1;
+    }
+    quantidadeProcessos = atoi(argv[1]);
+    QUANTUM = atoi(argv[2]);
     int tempoExecucao = 0;
     Process** processos = gerarProcessos(quantidadeProcessos);
     Fila *filaBaixaPrioridade = inicializarFila();
@@ -137,13 +142,6 @@ Process** gerarProcessos(int quantidadeProcessos) {
 }
 
 Fila* inicializarFila() {
-//    Fila* f = (Fila*) malloc(sizeof(Fila));
-//    if (f == NULL) {
-//        printf("Erro na alocação de memória para a fila.\n");
-//        exit(1);
-//    }
-//    f->prox = NULL;
-//    return f;
     return NULL;
 }
 
@@ -250,7 +248,6 @@ void processarRoundRobin(int quantidadeProcessos, int *tempoExecucao, Process **
     while (quantidadeProcessosFinalizados < quantidadeProcessos) {
         adicionarNovosProcessos(quantidadeProcessos, processos, tempo, filaAltaPrioridade);
         processarFilaCPU(tempo, &quantidadeProcessosFinalizados, &processoSendoExecutado, filaBaixaPrioridade, filaAltaPrioridade, filaProcessosConcluidos);
-        //todo: executarCPU
         //todo: executarIOImpressora
         //todo: executarIODisco
         //todo: executarIOFita
@@ -265,7 +262,7 @@ void processarFilaCPU(int tempo, int *quantidadeProcessosFinalizados, Process **
             (*processoSendoExecutado)->status = CONCLUIDO;
             (*processoSendoExecutado)->tempQuantum = 0;
             (*processoSendoExecutado)->tempoConclusao = tempo;
-            (*processoSendoExecutado)->turnaroundTime = (*processoSendoExecutado)->tempoConclusao - (*processoSendoExecutado)->tempoEntrada;
+            (*processoSendoExecutado)->turnaroundTime = (float) (*processoSendoExecutado)->tempoConclusao - (float) (*processoSendoExecutado)->tempoEntrada;
             adicionarNaFila(filaProcessosConcluidos, *processoSendoExecutado);
             (*quantidadeProcessosFinalizados)++;
             *processoSendoExecutado = NULL;
@@ -299,30 +296,10 @@ void adicionarNovosProcessos(int quantidadeProcessos, Process **processos, int t
         Process* processo = processos[i];
         if (processo->tempoEntrada == tempo) {
             adicionarNaFila(filaAltaPrioridade, processo);
-            imprimirFila(filaAltaPrioridade, "de Alta prioridade");
         }
     }
 }
 
-//void adicionarNaFila(Fila** fila, Process* processo) {
-//    // Cria um novo nó para a fila
-//    Fila* novoNo = (Fila*) malloc(sizeof(Fila));
-//    processo->status = PRONTO;
-//    processo->prioridade = 0;
-//    novoNo->processo = *processo;
-//    novoNo->prox = NULL;
-//    if (*fila == NULL) {
-//        // Se a fila estiver vazia, o novo nó é o primeiro nó
-//        *fila = novoNo;
-//    } else {
-//        // Caso contrário, adiciona o novo nó ao final da fila
-//        Fila* atual = *fila;
-//        while (atual->prox != NULL) {
-//            atual = atual->prox;
-//        }
-//        atual->prox = novoNo;
-//    }
-//}
 
 void adicionarNaFila(Fila** fila, Process* processo) {
     // Cria um novo nó para a fila
@@ -345,19 +322,19 @@ void adicionarNaFila(Fila** fila, Process* processo) {
 }
 
 
-void imprimirFila(Fila** fila, char* nomeFila) {
-    Fila* atual = *fila; // Desreferencie 'fila' para obter um ponteiro para 'Fila'
-    printf("Processos na fila %s: [", nomeFila);
-    if (atual != NULL) {
-        printf("%s", atual->processo->pid);
-        atual = atual->prox;
-    }
-    while (atual != NULL) {
-        printf(", %s", atual->processo->pid);
-        atual = atual->prox;
-    }
-    printf("]\n");
-}
+//void imprimirFila(Fila** fila, char* nomeFila) {
+//    Fila* atual = *fila; // Desreferencie 'fila' para obter um ponteiro para 'Fila'
+//    printf("Processos na fila %s: [", nomeFila);
+//    if (atual != NULL) {
+//        printf("%s", atual->processo->pid);
+//        atual = atual->prox;
+//    }
+//    while (atual != NULL) {
+//        printf(", %s", atual->processo->pid);
+//        atual = atual->prox;
+//    }
+//    printf("]\n");
+//}
 
 
 const char* TipoEntradaSaidaParaString(TipoEntradaSaida tipo) {
@@ -372,18 +349,6 @@ const char* TipoEntradaSaidaParaString(TipoEntradaSaida tipo) {
 bool isEmpty(Fila* fila) {
     return (fila == NULL);
 }
-
-//Process* getProcessoFromFila(Fila** fila) {
-//    if (*fila == NULL) {
-//        return NULL;
-//    }
-//    Fila* primeiroNo = *fila;
-//    *fila = primeiroNo->prox; // Atualiza a fila para apontar para o segundo nó
-//    Process* processo = malloc(sizeof(Process));
-//    *processo = primeiroNo->processo; // Copia o processo
-//    free(primeiroNo); // Libera a memória do nó removido
-//    return processo;
-//}
 
 Process* getProcessoFromFila(Fila** fila) {
     if (*fila == NULL) {
@@ -406,7 +371,7 @@ void imprimirProcessosConcluidos(int quantidadeProcessos, int tempoExecucao, Fil
         Process* processo = atual->processo; // Agora é um ponteiro para Process
         totalCPUTempo = processo->totalCPUNecessario + totalCPUTempo;
         totalTurnAround = processo->turnaroundTime + totalTurnAround;
-        printf("PID: %s, Status: %d, Tempo de Entrada: %d, Tempo de Conclusão: %d, Total CPU Necessario: %d, Turnaround Time: %d \n",
+        printf("PID: %s, Status: %d, Tempo de Entrada: %d, Tempo de Conclusão: %d, Total CPU Necessario: %d, Turnaround Time: %.2f \n",
                processo->pid,
                processo->status,
                processo->tempoEntrada,
