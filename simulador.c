@@ -353,9 +353,8 @@ void imprimirProcessosConcluidos(int quantidadeProcessos, int tempoExecucao, Fil
         Process* processo = atual->processo; // Agora é um ponteiro para Process
         totalCPUTempo = processo->totalCPUNecessario + totalCPUTempo;
         totalTurnAround = processo->turnaroundTime + totalTurnAround;
-        printf("PID: %s, Status: %d, Tempo de Entrada: %d, Tempo de Conclusão: %d, Total CPU Necessario: %d, Turnaround Time: %.2f \n",
+        printf("PID: %s, Tempo de Entrada: %d, Tempo de Conclusão: %d, Total CPU Necessario: %d, Turnaround Time: %.2f \n",
                processo->pid,
-               processo->status,
                processo->tempoEntrada,
                processo->tempoConclusao,
                processo->totalCPUNecessario,
