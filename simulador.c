@@ -6,7 +6,6 @@
 typedef int bool;
 #define true 1
 #define false 0
-#define MAX_PROCESSOS 10
 int QUANTUM  = 0;
 int quantidadeProcessos = 0;
 #define DISCO_IO_DURATION 4
@@ -17,8 +16,8 @@ int quantidadeProcessos = 0;
 #define TOTAL_CPU_MAX 10
 #define TOTAL_OPERACOES_ENTRADA_SAIDA_MAX 2
 #define TIPO_ENTRADA_SAIDA_NUM 3
-#define QUANTIDADE_MAXIMA_PROCESSOS 6
 #define TEMPO_CHAMADA_IO 3
+
 
 typedef struct Process Process;
 
@@ -44,19 +43,19 @@ typedef enum {
 } FilaTipo;
 
 typedef struct ProcessIO {
-    int ppid[3];
+    char ppid[5];
     TipoEntradaSaida tipo;
     int totalDuracao;
     int inicio;
     int totalExecucao;
     int fim;
-    struct Process* processoPai;
+    Process* processoPai;
     struct ProcessIO* proximo; // Ponteiro para o próximo ProcessIO na lista
 } ProcessIO;
 
 
 typedef struct Process {
-    char pid[3];
+    char pid[5];
     int prioridade;
     StatusProcesso status;
     int tempoEntrada;
@@ -75,6 +74,10 @@ typedef struct FILA {
     struct FILA *prox;
 } Fila;
 
+typedef struct FILA_IO {
+    ProcessIO* operacaoIO;
+    struct FILA_IO *prox;
+} FilaIO;
 
 Process* criarProcesso(int id);
 
@@ -82,12 +85,13 @@ int getTotalDuracaoIO(TipoEntradaSaida tipo);
 
 void removerProcessIO(Process* p, ProcessIO* io);
 
-void processarRoundRobin(int quantidadeProcessos, int *tempoExecucao, Process **pProcess, Fila **pFila, Fila **pFila1, Fila **pFila2, Fila **pFila3, Fila **pFila4, Fila **filaProcessosConcluidos);
-
+void processarRoundRobin(int quantidadeProcessos, int *tempoExecucao, Process **processos, Fila **filaAltaPrioridade, Fila **filaBaixaPrioridade, Fila **filaBloqueado, FilaIO **filaImpressora, FilaIO **filaDisco, FilaIO **filaFita, Fila **filaProcessosConcluidos);
 
 Process** gerarProcessos(int quantidadeProcessos);
 
 Fila* inicializarFila();
+
+FilaIO* inicializarFilaIO();
 
 const char* TipoEntradaSaidaParaString(TipoEntradaSaida tipo);
 
@@ -97,13 +101,27 @@ void adicionarNaFila(Fila** fila, Process* processo);
 
 void adicionarNovosProcessos(int quantidadeProcessos, Process **processos, int tempo, Fila **filaAltaPrioridade);
 
-void processarFilaCPU(int tempo, int *quantidadeProcessosFinalizados, Process **processoSendoExecutado, Fila **filaBaixaPrioridade, Fila **filaAltaPrioridade, Fila **filaProcessosConcluidos);
+void processarFilaCPU(int tempo, int *quantidadeProcessosFinalizados, Process **processoSendoExecutado, Fila **filaBaixaPrioridade, Fila **filaAltaPrioridade, Fila **filaBloqueado, FilaIO **filaImpressora, FilaIO **filaDisco, FilaIO **filaFita, Fila **filaProcessosConcluidos);
 
 bool isEmpty(Fila* fila);
 
+bool isIoEmpty(FilaIO* fila);
+
 Process* getProcessoFromFila(Fila** fila);
 
+ProcessIO* getIOFromFila(FilaIO** fila);
+
 void imprimirProcessosConcluidos(int quantidadeProcessos, int tempoExecucao, Fila **filaProcessosConcluidos);
+
+void imprimirFila(Fila** fila, char* nomeFila);
+
+ProcessIO* getIOFromProcesso(Process **processoSendoExecutado);
+
+void adicionarIOFila(FilaIO** fila, ProcessIO* operacaoIO);
+
+void executarIOImpressora(ProcessIO **ioAtual, FilaIO **filaIO, Fila **filaAltaPrioridade, Fila **filaBaixaPrioridade, Fila **filaBloqueado);
+
+Process* getProcessByPidAndFila(char* pid, Fila** fila);
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
@@ -117,12 +135,13 @@ int main(int argc, char *argv[]) {
     Process** processos = gerarProcessos(quantidadeProcessos);
     Fila *filaBaixaPrioridade = inicializarFila();
     Fila *filaAltaPrioridade = inicializarFila();
-    Fila *filaDisco = inicializarFila();
-    Fila *filaImpressora = inicializarFila();
-    Fila *filaFita = inicializarFila();
+    Fila *filaBloqueado = inicializarFila();
+    FilaIO *filaDisco = inicializarFilaIO();
+    FilaIO *filaImpressora = inicializarFilaIO();
+    FilaIO *filaFita = inicializarFilaIO();
     Fila *filaProcessosConcluidos = inicializarFila();
     printConsoleIncializacaoProcessos(processos, quantidadeProcessos);
-    processarRoundRobin(quantidadeProcessos, &tempoExecucao, processos,&filaAltaPrioridade,&filaBaixaPrioridade,&filaImpressora,&filaDisco,&filaFita, &filaProcessosConcluidos);
+    processarRoundRobin(quantidadeProcessos, &tempoExecucao, processos, &filaAltaPrioridade, &filaBaixaPrioridade, &filaBloqueado, &filaImpressora, &filaDisco, &filaFita, &filaProcessosConcluidos);
     imprimirProcessosConcluidos(quantidadeProcessos, tempoExecucao, &filaProcessosConcluidos);
     return 0;
 }
@@ -140,6 +159,10 @@ Process** gerarProcessos(int quantidadeProcessos) {
 }
 
 Fila* inicializarFila() {
+    return NULL;
+}
+
+FilaIO* inicializarFilaIO() {
     return NULL;
 }
 
@@ -166,9 +189,10 @@ Process* criarProcesso(int id) {
             printf("Erro na alocação de memória para a operação de entrada/saída.\n");
             exit(1);
         }
+        strcpy(io->ppid, p->pid);
         io->tipo = (TipoEntradaSaida) (rand() % TIPO_ENTRADA_SAIDA_NUM);
         io->totalDuracao = getTotalDuracaoIO(io->tipo);
-        io->inicio = 0;
+        io->inicio = rand() % (TEMPO_CHAMADA_IO + 2 + io->tipo);
         io->totalExecucao = 0;
         io->fim = 0;
         io->processoPai = p;
@@ -239,22 +263,25 @@ void removerProcessIO(Process* p, ProcessIO* io) {
     free(io); // Libera a memória alocada para o ProcessIO
 }
 
-void processarRoundRobin(int quantidadeProcessos, int *tempoExecucao, Process **processos, Fila **filaAltaPrioridade, Fila **filaBaixaPrioridade, Fila **filaImpressora, Fila **filaDisco, Fila **filaFita, Fila **filaProcessosConcluidos) {
+bool isInterrupcaoIO(Process **processoSendoExecutado, int tempoAtual);
+
+void processarRoundRobin(int quantidadeProcessos, int *tempoExecucao, Process **processos, Fila **filaAltaPrioridade, Fila **filaBaixaPrioridade, Fila **filaBloqueado, FilaIO **filaImpressora, FilaIO **filaDisco, FilaIO **filaFita, Fila **filaProcessosConcluidos) {
     int tempo = 0;
     int quantidadeProcessosFinalizados = 0;
     Process* processoSendoExecutado = NULL;
+    ProcessIO* impressoraIOAtual = NULL;
     while (quantidadeProcessosFinalizados < quantidadeProcessos) {
         adicionarNovosProcessos(quantidadeProcessos, processos, tempo, filaAltaPrioridade);
-        processarFilaCPU(tempo, &quantidadeProcessosFinalizados, &processoSendoExecutado, filaBaixaPrioridade, filaAltaPrioridade, filaProcessosConcluidos);
-        //todo: executarIOImpressora
-        //todo: executarIODisco
-        //todo: executarIOFita
+        processarFilaCPU(tempo, &quantidadeProcessosFinalizados, &processoSendoExecutado, filaBaixaPrioridade, filaAltaPrioridade, filaBloqueado, filaImpressora, filaDisco, filaFita, filaProcessosConcluidos);
+        executarIOImpressora(&impressoraIOAtual, filaImpressora, filaAltaPrioridade, filaBaixaPrioridade, filaBloqueado);
+        executarIOImpressora(&impressoraIOAtual, filaFita, filaAltaPrioridade, filaBaixaPrioridade, filaBloqueado);
+        executarIOImpressora(&impressoraIOAtual, filaDisco, filaAltaPrioridade, filaBaixaPrioridade, filaBloqueado);
         tempo+= 1;
     }
     (*tempoExecucao) = tempo;
 }
 
-void processarFilaCPU(int tempo, int *quantidadeProcessosFinalizados, Process **processoSendoExecutado, Fila **filaBaixaPrioridade, Fila **filaAltaPrioridade, Fila **filaProcessosConcluidos) {
+void processarFilaCPU(int tempo, int *quantidadeProcessosFinalizados, Process **processoSendoExecutado, Fila **filaBaixaPrioridade, Fila **filaAltaPrioridade, Fila **filaBloqueado, FilaIO **filaImpressora, FilaIO **filaDisco, FilaIO **filaFita, Fila **filaProcessosConcluidos) {
     if (*processoSendoExecutado != NULL) {
         if ((*processoSendoExecutado)->totalCPUNecessario == (*processoSendoExecutado)->tempoCPUUtilizado) {
             (*processoSendoExecutado)->status = CONCLUIDO;
@@ -265,12 +292,32 @@ void processarFilaCPU(int tempo, int *quantidadeProcessosFinalizados, Process **
             (*quantidadeProcessosFinalizados)++;
             *processoSendoExecutado = NULL;
         }
+        else if (isInterrupcaoIO(processoSendoExecutado, tempo)) {
+            (*processoSendoExecutado)->tempQuantum = 0;
+            (*processoSendoExecutado)->status = BLOQUEADO;
+            adicionarNaFila(filaBloqueado, *processoSendoExecutado);
+            imprimirFila(filaBloqueado, "Fila Bloqueado:");
+            ProcessIO* operacaoIO = getIOFromProcesso(processoSendoExecutado);
+            (*processoSendoExecutado)->operacaoEntradaSaidaAtual = operacaoIO;
+            if (IMPRESSORA == operacaoIO->tipo) {
+                adicionarIOFila(filaImpressora, operacaoIO);
+            }
+            if (DISCO == operacaoIO->tipo) {
+                adicionarIOFila(filaDisco, operacaoIO);
+            }
+            if (FITA == operacaoIO->tipo) {
+                adicionarIOFila(filaFita, operacaoIO);
+            }
+            *processoSendoExecutado = NULL;
+        }
         else if ((*processoSendoExecutado)->tempQuantum == QUANTUM) {
             (*processoSendoExecutado)->tempQuantum = 0;
             (*processoSendoExecutado)->status = PRONTO;
             adicionarNaFila(filaBaixaPrioridade, *processoSendoExecutado);
             *processoSendoExecutado = NULL;
-        } else {
+        }
+        else {
+            (*processoSendoExecutado)->status = EXECUTANDO;
             (*processoSendoExecutado)->tempoCPUUtilizado += 1;
             (*processoSendoExecutado)->tempQuantum += 1;
         }
@@ -278,12 +325,12 @@ void processarFilaCPU(int tempo, int *quantidadeProcessosFinalizados, Process **
     if (*processoSendoExecutado == NULL) {
         if (!isEmpty(*filaAltaPrioridade)) {
             *processoSendoExecutado = getProcessoFromFila(filaAltaPrioridade);
-//            imprimirFila(filaAltaPrioridade, "de Alta prioridade");
+            imprimirFila(filaAltaPrioridade, "de Alta prioridade");
             return;
         }
         if (!isEmpty(*filaBaixaPrioridade)) {
             *processoSendoExecutado = getProcessoFromFila(filaBaixaPrioridade);
-//            imprimirFila(filaBaixaPrioridade, "de baixa prioridade");
+            imprimirFila(filaBaixaPrioridade, "de baixa prioridade");
             return;
         }
     }
@@ -294,28 +341,9 @@ void adicionarNovosProcessos(int quantidadeProcessos, Process **processos, int t
         Process* processo = processos[i];
         if (processo->tempoEntrada == tempo) {
             adicionarNaFila(filaAltaPrioridade, processo);
+            processo->status = PRONTO;
+            processo->prioridade = 0;
         }
-    }
-}
-
-
-void adicionarNaFila(Fila** fila, Process* processo) {
-    // Cria um novo nó para a fila
-    Fila* novoNo = (Fila*) malloc(sizeof(Fila));
-    processo->status = PRONTO;
-    processo->prioridade = 0;
-    novoNo->processo = processo; // Agora armazena o ponteiro diretamente, sem copiar o processo
-    novoNo->prox = NULL;
-    if (*fila == NULL) {
-        // Se a fila estiver vazia, o novo nó é o primeiro nó
-        *fila = novoNo;
-    } else {
-        // Caso contrário, adiciona o novo nó ao final da fila
-        Fila* atual = *fila;
-        while (atual->prox != NULL) {
-            atual = atual->prox;
-        }
-        atual->prox = novoNo;
     }
 }
 
@@ -332,14 +360,18 @@ bool isEmpty(Fila* fila) {
     return (fila == NULL);
 }
 
+bool isIoEmpty(FilaIO* fila) {
+    return (fila == NULL);
+}
+
 Process* getProcessoFromFila(Fila** fila) {
     if (*fila == NULL) {
         return NULL;
     }
     Fila* primeiroNo = *fila;
-    *fila = primeiroNo->prox; // Atualiza a fila para apontar para o segundo nó
-    Process* processo = primeiroNo->processo; // Agora é um ponteiro para Process
-    free(primeiroNo); // Libera a memória do nó removido
+    *fila = primeiroNo->prox;
+    Process* processo = primeiroNo->processo;
+    free(primeiroNo);
     return processo;
 }
 
@@ -371,3 +403,130 @@ void imprimirProcessosConcluidos(int quantidadeProcessos, int tempoExecucao, Fil
 
 }
 
+bool isInterrupcaoIO(Process **processoSendoExecutado, int tempoAtual) {
+    ProcessIO* operacaoIO = (*processoSendoExecutado)->operacoesEntradasSaidas;
+    while (operacaoIO != NULL) {
+        if (operacaoIO->inicio == (*processoSendoExecutado)->tempoCPUUtilizado) {
+            return true;
+        }
+        operacaoIO = operacaoIO->proximo;
+    }
+    return false;
+}
+
+void imprimirFila(Fila** fila, char* nomeFila) {
+    Fila* atual = *fila; // Desreferencie 'fila' para obter um ponteiro para 'Fila'
+    printf("Processos na fila %s: [", nomeFila);
+    if (atual != NULL) {
+        printf("%s", atual->processo->pid);
+        atual = atual->prox;
+    }
+    while (atual != NULL) {
+        printf(", %s", atual->processo->pid);
+        atual = atual->prox;
+    }
+    printf("]\n");
+}
+
+ProcessIO* getIOFromProcesso(Process **processoSendoExecutado) {
+    ProcessIO* operacaoIO = (*processoSendoExecutado)->operacoesEntradasSaidas;
+    ProcessIO* anteriorIO = NULL;
+    while (operacaoIO != NULL) {
+        if (operacaoIO->inicio == (*processoSendoExecutado)->tempoCPUUtilizado) {
+            if (anteriorIO == NULL) {
+                (*processoSendoExecutado)->operacoesEntradasSaidas = operacaoIO->proximo;
+            } else {
+                anteriorIO->proximo = operacaoIO->proximo;
+            }
+            operacaoIO->proximo = NULL; // Isola a operação de IO
+            return operacaoIO;
+        }
+        anteriorIO = operacaoIO;
+        operacaoIO = operacaoIO->proximo;
+    }
+    return NULL;
+}
+
+void adicionarNaFila(Fila** fila, Process* processo) {
+    Fila* novoNo = (Fila*) malloc(sizeof(Fila));
+    novoNo->processo = processo;
+    novoNo->prox = NULL;
+    if (*fila == NULL) {
+        *fila = novoNo;
+    } else {
+        Fila* atual = *fila;
+        while (atual->prox != NULL) {
+            atual = atual->prox;
+        }
+        atual->prox = novoNo;
+    }
+}
+
+void adicionarIOFila(FilaIO** fila, ProcessIO* operacaoIO) {
+    FilaIO* novoNo = (FilaIO*) malloc(sizeof(FilaIO));
+    novoNo->operacaoIO = operacaoIO;
+    novoNo->prox = NULL;
+    if (*fila == NULL) {
+        *fila = novoNo;
+    } else {
+        FilaIO* atual = *fila;
+        while (atual->prox != NULL) {
+            atual = atual->prox;
+        }
+        atual->prox = novoNo;
+    }
+}
+
+void executarIOImpressora(ProcessIO **ioAtual, FilaIO **filaIO, Fila **filaAltaPrioridade, Fila **filaBaixaPrioridade, Fila **filaBloqueado) {
+    if (*ioAtual != NULL) {
+        if ((*ioAtual)->totalDuracao == (*ioAtual)->totalExecucao) {
+            Process* processo = getProcessByPidAndFila((*ioAtual)->ppid, filaBloqueado);
+            if (IMPRESSORA == (*ioAtual)->tipo || FITA == (*ioAtual)->tipo) {
+                adicionarNaFila(filaAltaPrioridade, processo);
+            }
+            if (DISCO == (*ioAtual)->tipo) {
+                adicionarNaFila(filaBaixaPrioridade, processo);
+            }
+            *ioAtual = NULL;
+        } else {
+            ((*ioAtual)->totalExecucao++);
+        }
+    }
+    if (*ioAtual == NULL) {
+        if (filaIO != NULL) {
+            *ioAtual = getIOFromFila(filaIO);
+            return;
+        }
+    }
+}
+
+Process* getProcessByPidAndFila(char* pid, Fila** fila) {
+    Fila* atual = *fila;
+    Fila* anterior = NULL;
+    while (atual != NULL) {
+        if (strcmp(atual->processo->pid, pid) == 0) {
+            if (anterior == NULL) {
+                *fila = atual->prox;
+            } else {
+                anterior->prox = atual->prox;
+            }
+            Process* processo = atual->processo;
+            free(atual);
+            return processo;
+        }
+        anterior = atual;
+        atual = atual->prox;
+    }
+    return NULL;
+}
+
+ProcessIO* getIOFromFila(FilaIO** fila) {
+    if (*fila == NULL) {
+        return NULL;
+    }
+    FilaIO* primeiroNo = *fila;
+    *fila = primeiroNo->prox;
+    ProcessIO* operacaoIO = primeiroNo->operacaoIO;
+    free(primeiroNo);
+    return operacaoIO;
+}
